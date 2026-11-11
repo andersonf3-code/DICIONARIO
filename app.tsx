@@ -23,7 +23,7 @@ const localDateValue = () => {
   return `${year}-${month}-${day}`;
 };
 const initialForm: FormData = { institution: "", address: "", city: "", uf: "", process: "", representative: "", role: "", nationality: "Brasileira", cpf: "", email: "", phone: "", purpose: "", place: "", date: localDateValue() };
-const destinationEmail = "caf@mda.gov.br";
+const destinationEmail = "caf.operacao@mda.gov.br";
 const digits = (value: string) => value.replace(/\D/g, "");
 const formatCpf = (value: string) => digits(value).slice(0, 11).replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 const formatSeiProcess = (value: string) => {
