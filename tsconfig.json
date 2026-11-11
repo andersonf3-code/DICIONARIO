@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","lib":["DOM","ES2022"],"strict":true,"skipLibCheck":true,"esModuleInterop":true,"module":"ESNext","moduleResolution":"Bundler","resolveJsonModule":true,"jsx":"react-jsx","noEmit":true,"types":["vite/client","node"],"paths":{"@/*":["./*"]}},"include":["app.tsx","main.tsx","components/ui/*.tsx","lib/utils.ts","vite.config.ts"]}
