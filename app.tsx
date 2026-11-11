@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { jsPDF } from "jspdf";
-import * as XLSX from "xlsx";
-import { BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Download, ExternalLink, FileCheck2, FileSpreadsheet, FileText, Mail, Search, ShieldCheck, X } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Download, ExternalLink, FileCheck2, FileText, Mail, Search, ShieldCheck, X } from "lucide-react";
 import municipalityData from "./municipalities.json";
 const municipalities: Record<string, string[]> = municipalityData;
 import { Button } from "@/components/ui/button";
@@ -79,68 +78,6 @@ function loadPdfHeader() {
     image.src = `${import.meta.env.BASE_URL}assets/brasao-cabecalho.png`;
   });
 }
-
-const cloneFormat = <T,>(value: T): T => value ? JSON.parse(JSON.stringify(value)) : value;
-
-function createCell(value: string, source?: XLSX.CellObject): XLSX.CellObject {
-  const cell: XLSX.CellObject = { t: "s", v: value };
-  if (source?.s) cell.s = cloneFormat(source.s);
-  return cell;
-}
-
-function buildRequestDataSheet(source: XLSX.WorkSheet, form: FormData, handlers: Handler[]) {
-  const sheet = XLSX.utils.aoa_to_sheet([]);
-  const sectionStyle = [source.A4, source.B4, source.C4];
-  const labelStyle = source.A5;
-  const valueStyle = source.B5;
-  sheet["!cols"] = cloneFormat(source["!cols"] || [{ wch: 30 }, { wch: 42 }, { wch: 42 }]);
-  sheet["!rows"] = cloneFormat(source["!rows"] || []);
-  sheet["!margins"] = cloneFormat(source["!margins"]);
-  sheet["!merges"] = [];
-  let row = 2;
-  const mergedRow = (text: string, styles = sectionStyle) => {
-    for (let col = 0; col < 3; col++) sheet[XLSX.utils.encode_cell({ r: row, c: col })] = createCell(col === 0 ? text : "", styles[col]);
-    sheet["!merges"]!.push({ s: { r: row, c: 0 }, e: { r: row, c: 2 } });
-    row += 1;
-  };
-  const field = (label: string, value: string) => {
-    sheet[XLSX.utils.encode_cell({ r: row, c: 0 })] = createCell(label, labelStyle);
-    sheet[XLSX.utils.encode_cell({ r: row, c: 1 })] = createCell(value || "Não informado", valueStyle);
-    sheet[XLSX.utils.encode_cell({ r: row, c: 2 })] = createCell("", valueStyle);
-    sheet["!merges"]!.push({ s: { r: row, c: 1 }, e: { r: row, c: 2 } });
-    row += 1;
-  };
-
-  mergedRow("DADOS DA SOLICITAÇÃO", [source.A3, source.B3, source.C3]);
-  row += 1;
-  mergedRow("INSTITUIÇÃO SOLICITANTE");
-  field("Instituição ou órgão", form.institution);
-  field("Endereço completo", form.address);
-  field("Cidade/UF", `${form.city}/${form.uf}`);
-  field("Processo SEI", form.process);
-  field("Finalidade do uso", form.purpose);
-  field("Local e data", `${form.place}, ${formatDate(form.date)}`);
-  row += 1;
-  mergedRow("RESPONSÁVEL PELA INSTITUIÇÃO E PELOS DADOS");
-  field("Nome", form.representative);
-  field("Cargo ou função", form.role);
-  field("Nacionalidade", form.nationality);
-  field("CPF", form.cpf);
-  field("E-mail", form.email);
-  field("Telefone", form.phone);
-  row += 1;
-  mergedRow("TRATADORES DE DADOS");
-  handlers.forEach((person, index) => {
-    mergedRow(`TRATADOR(A) ${index + 1}`);
-    field("Nome", person.name);
-    field("Cargo ou função", person.role);
-    field("CPF", person.cpf);
-    field("E-mail", person.email);
-    if (index < handlers.length - 1) row += 1;
-  });
-  sheet["!ref"] = `A1:C${row}`;
-  return sheet;
-}
 export default function Home() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(initialForm); const [notice, setNotice] = useState("");
@@ -184,16 +121,6 @@ export default function Home() {
     doc.save(type === "responsibility" ? "Termo_de_Responsabilidade_CAF.pdf" : `Termo_de_Compromisso_de_Sigilo_CAF_${digits(person!.cpf)}.pdf`); setNoticeError(false); setNotice("PDF gerado. Guarde o arquivo para assinatura eletrônica no gov.br.");
   }
 
-  function generateRequestSpreadsheet() {
-    if (!formReady) { setShowFormErrors(true); setNoticeError(true); setNotice("Confira os campos obrigatórios."); setStep(0); return; }
-    try {
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, buildRequestDataSheet({}, form, handlers), "Dados da solicitação");
-      XLSX.writeFile(workbook, "Solicitacao_de_Dados_CAF.xlsx");
-      setNoticeError(false); setNotice("Planilha com os dados da solicitação gerada.");
-    } catch { setNoticeError(true); setNotice("Não foi possível gerar a planilha. Tente novamente."); }
-  }
-
   function openEmail() {
     if (!formReady) { setShowFormErrors(true); setNoticeError(true); setNotice("Há campos obrigatórios não preenchidos ou preenchidos incorretamente. Confira as mensagens em vermelho."); setStep(0); return; }
     const body = `Prezados,\n\nEncaminho a solicitação de dados do CAF, o termo de responsabilidade assinado, os ${handlers.length} termos de compromisso e manutenção de sigilo assinados.\n\nInstituição: ${form.institution}\nResponsável: ${form.representative}\nTratadores: ${handlers.map((person) => person.name).join(", ")}\nProcesso SEI: ${form.process || "não informado"}\n\nAtenciosamente,\n${form.representative}`;
@@ -227,7 +154,7 @@ export default function Home() {
           <div><h4 className="mb-2 border-b pb-2 text-lg font-bold">3. Pessoas que vão tratar os dados</h4><p className="mb-4 text-sm text-slate-500">Será gerado um Termo de Compromisso e Manutenção de Sigilo para cada pessoa.</p><div className="space-y-4">{handlers.map((person, index) => <div key={person.id} className="rounded-xl border border-[#d9e1de] bg-[#f8faf9] p-4"><div className="mb-4 flex items-center justify-between"><h5 className="font-bold">Tratador(a) {index + 1}</h5>{handlers.length > 1 && <Button variant="outline" size="sm" onClick={() => setHandlers((old) => old.filter((item) => item.id !== person.id))}>Remover</Button>}</div><div className="form-grid"><Field label={`Nome do tratador ${index + 1} *`} value={person.name} onChange={(v) => updateHandler(person.id, "name", v)} error={showFormErrors && !person.name.trim() ? "Campo obrigatório." : undefined}/><Field label={`Cargo ou função do tratador ${index + 1} *`} value={person.role} onChange={(v) => updateHandler(person.id, "role", v)} error={showFormErrors && !person.role.trim() ? "Campo obrigatório." : undefined}/><Field label={`CPF do tratador ${index + 1} *`} value={person.cpf} onChange={(v) => updateHandler(person.id, "cpf", formatCpf(v))} error={showFormErrors && !person.cpf ? "Campo obrigatório." : person.cpf && !validateCpf(person.cpf) ? "CPF preenchido incorretamente." : undefined}/><Field label={`E-mail do tratador ${index + 1} *`} value={person.email} onChange={(v) => updateHandler(person.id, "email", v)} error={showFormErrors && !person.email.trim() ? "Campo obrigatório." : person.email && !validEmail(person.email) ? "E-mail preenchido incorretamente." : undefined} type="email"/></div></div>)}</div><Button variant="outline" className="mt-4" onClick={addHandler}>Adicionar outra pessoa</Button></div>
         </div></section>}
 
-      {step === 1 && <section className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]"><div className="panel p-5 md:p-8"><p className="eyebrow">Documentos prontos</p><h3 className="mt-1 text-xl font-bold">Baixe, assine e encaminhe</h3><div className="mt-6 grid gap-4 md:grid-cols-2"><DocumentCard title="Termo de Responsabilidade" description={`Para ${form.representative}, responsável pela instituição.`} onDownload={() => generatePdf("responsibility")}/>{handlers.map((person) => <DocumentCard key={person.id} title="Termo de Compromisso e Manutenção de Sigilo" description={`Para ${person.name} — CPF ${person.cpf}.`} onDownload={() => generatePdf("confidentiality", person)}/>) }<SpreadsheetCard onDownload={generateRequestSpreadsheet}/></div><div className="mt-6 flex flex-col gap-4 rounded-xl border border-[#c9d8d2] bg-[#f2f7f5] p-4 text-sm leading-6 text-slate-600 sm:flex-row sm:items-center sm:justify-between"><p><strong className="text-[#07523f]">Assinatura pelo gov.br:</strong> o responsável assina o Termo de Responsabilidade. Cada tratador assina seu próprio Termo de Compromisso e Manutenção de Sigilo. Anexe todos os PDFs assinados e a planilha Excel ao e-mail.</p><a href="https://assinador.iti.br/" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#07523f] px-4 py-2 font-semibold text-white shadow-sm transition-colors hover:bg-[#063f32] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#16866b] focus-visible:ring-offset-2">Acessar assinatura GOV.BR <ExternalLink size={16}/></a></div></div><aside className="panel h-fit p-5 md:p-7"><div className="grid h-11 w-11 place-items-center rounded-xl bg-[#e5f3ee] text-[#07523f]"><Mail size={22}/></div><h3 className="mt-4 text-lg font-bold">Encaminhar por e-mail</h3><p className="mt-2 text-sm leading-6 text-slate-500">O botão abre seu aplicativo de e-mail com destinatário, assunto e mensagem preenchidos. Anexe os termos assinados e a planilha.</p><div className="mt-5"><Label htmlFor="destination">E-mail da Coordenação do CAF</Label><Input id="destination" className="mt-2" type="email" value={destinationEmail} readOnly aria-readonly="true"/></div><Button className="mt-4 w-full" onClick={openEmail}><Mail size={17}/> Preparar e-mail</Button><div className="mt-6 border-t border-[#dfe5e2] pt-5 text-sm"><div className="mt-2 flex justify-between"><span className="text-slate-500">Tratadores</span><strong>{handlers.length}</strong></div></div></aside></section>}
+      {step === 1 && <section className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]"><div className="panel p-5 md:p-8"><p className="eyebrow">Documentos prontos</p><h3 className="mt-1 text-xl font-bold">Baixe, assine e encaminhe</h3><div className="mt-6 grid gap-4 md:grid-cols-2"><DocumentCard title="Termo de Responsabilidade" description={`Para ${form.representative}, responsável pela instituição.`} onDownload={() => generatePdf("responsibility")}/>{handlers.map((person) => <DocumentCard key={person.id} title="Termo de Compromisso e Manutenção de Sigilo" description={`Para ${person.name} — CPF ${person.cpf}.`} onDownload={() => generatePdf("confidentiality", person)}/>) }</div><div className="mt-6 flex flex-col gap-4 rounded-xl border border-[#c9d8d2] bg-[#f2f7f5] p-4 text-sm leading-6 text-slate-600 sm:flex-row sm:items-center sm:justify-between"><p><strong className="text-[#07523f]">Assinatura pelo gov.br:</strong> o responsável assina o Termo de Responsabilidade. Cada tratador assina seu próprio Termo de Compromisso e Manutenção de Sigilo. Anexe todos os PDFs assinados.</p><a href="https://assinador.iti.br/" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#07523f] px-4 py-2 font-semibold text-white shadow-sm transition-colors hover:bg-[#063f32] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#16866b] focus-visible:ring-offset-2">Acessar assinatura GOV.BR <ExternalLink size={16}/></a></div></div><aside className="panel h-fit p-5 md:p-7"><div className="grid h-11 w-11 place-items-center rounded-xl bg-[#e5f3ee] text-[#07523f]"><Mail size={22}/></div><h3 className="mt-4 text-lg font-bold">Encaminhar por e-mail</h3><p className="mt-2 text-sm leading-6 text-slate-500">O botão abre seu aplicativo de e-mail com destinatário, assunto e mensagem preenchidos. Anexe os termos assinados.</p><div className="mt-5"><Label htmlFor="destination">E-mail da Coordenação do CAF</Label><Input id="destination" className="mt-2" type="email" value={destinationEmail} readOnly aria-readonly="true"/></div><Button className="mt-4 w-full" onClick={openEmail}><Mail size={17}/> Preparar e-mail</Button><div className="mt-6 border-t border-[#dfe5e2] pt-5 text-sm"><div className="mt-2 flex justify-between"><span className="text-slate-500">Tratadores</span><strong>{handlers.length}</strong></div></div></aside></section>}
 
       <footer className="mt-6 flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center"><Button variant="outline" disabled={step === 0} onClick={() => setStep((old) => Math.max(0, old - 1))}><ChevronLeft size={17}/> Voltar</Button>{step < 1 && <Button onClick={() => { if (!formReady) { setShowFormErrors(true); setNoticeError(true); setNotice("Há campos obrigatórios não preenchidos ou preenchidos incorretamente. Confira as mensagens em vermelho."); window.scrollTo({ top: 0, behavior: "smooth" }); return; } setShowFormErrors(false); setNoticeError(false); setNotice(""); setStep((old) => old + 1); }}>Gerar documentos<ChevronRight size={17}/></Button>}</footer>
     </div>
@@ -238,4 +165,3 @@ function Field({ label, value, onChange, wide, error, type = "text", placeholder
 function SelectField({ label, value, onChange, options, error, disabled = false, placeholder = "Selecione" }: { label: string; value: string; onChange: (v: string) => void; options: string[]; error?: string; disabled?: boolean; placeholder?: string }) { return <div><Label>{label}</Label><select aria-invalid={Boolean(error)} disabled={disabled} className={`mt-2 h-9 w-full rounded-md border px-3 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${error ? "border-red-600 bg-red-50" : "border-input bg-transparent"}`} value={value} onChange={(e) => onChange(e.target.value)}><option value="">{placeholder}</option>{options.map((option) => <option key={option}>{option}</option>)}</select>{error && <p role="alert" className="mt-2 rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white">{error}</p>}</div>; }
 function TextField({ label, value, onChange, placeholder, wide, error }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; wide?: boolean; error?: string }) { return <div className={wide ? "md:col-span-2" : ""}><Label>{label}</Label><Textarea aria-invalid={Boolean(error)} className={`mt-2 min-h-28 ${error ? "border-red-600 bg-red-50" : ""}`} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)}/>{error && <p role="alert" className="mt-2 rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white">{error}</p>}</div>; }
 function DocumentCard({ title, description, onDownload }: { title: string; description: string; onDownload: () => void }) { return <article className="rounded-2xl border border-[#d9e1de] bg-white p-5"><div className="flex items-start justify-between"><div className="grid h-11 w-11 place-items-center rounded-xl bg-[#f4ead0] text-[#8c6d0b]"><FileText size={22}/></div><span className="rounded-full bg-[#e7f5ef] px-2.5 py-1 text-xs font-semibold text-[#07523f]">PDF</span></div><h4 className="mt-5 font-bold">{title}</h4><p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">{description}</p><Button variant="outline" className="mt-4 w-full" onClick={onDownload}><Download size={17}/> Baixar PDF</Button></article>; }
-function SpreadsheetCard({ onDownload }: { onDownload: () => void }) { return <article className="rounded-2xl border border-[#d9e1de] bg-white p-5"><div className="flex items-start justify-between"><div className="grid h-11 w-11 place-items-center rounded-xl bg-[#e5f3ee] text-[#07523f]"><FileSpreadsheet size={22}/></div><span className="rounded-full bg-[#e7f5ef] px-2.5 py-1 text-xs font-semibold text-[#07523f]">XLSX</span></div><h4 className="mt-5 font-bold">Planilha de solicitação</h4><p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">Dados da instituição, do responsável, dos tratadores.</p><Button variant="outline" className="mt-4 w-full" onClick={onDownload}><Download size={17}/> Baixar Excel</Button></article>; }
